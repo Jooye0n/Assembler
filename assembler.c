@@ -12,7 +12,9 @@ char *dec_to_bin(int k, int n); //자리수, 숫자
 int hex_to_dec(char* hex);
 char *bin_to_hex(char* bin);
 int find_op(char* inst);
-void Eliminate(char *str, char ch);
+int find_dataLabel(char* inst);
+// int pc_addressing(int dec);
+// int find_textLabel(char *label);
 
 
 /*******************************************************
@@ -43,15 +45,31 @@ typedef struct opcode{
     char* funct;
 }opcode;
 
+typedef struct data{
+    char label[10];
+    char value[20];
+    int address; // recorded in decimal
+}data;
+
+typedef struct label{
+    char name[10];
+    int address; // recorded in decimal
+}label;
+
 typedef int bool;
 #define true 1
 #define false 0
 
 opcode opcode_list[21] = {
         {"addiu","001001",'i'},{"addu","000000",'r',"100001"},{"and","000000",'r',"100100"},{"andi","001100",'i'},{"beq","000100",'i'},{"bne","000101",'i'},{"j","000010",'j'},
-        {"jal","000011",'j'},{"jr","000000",'r',"001000"},{"lui","001111",'i'},{"lw","100011",'i'},/*{"la","111111",'s',"001101"},*/{"nor","000000",'r',"100111"},{"or","000000",'r',"100101"},
+        {"jal","000011",'j'},{"jr","000000",'r',"001000"},{"lui","001111",'i'},{"lw","100011",'i'},{"la","111111",'i',"001101"},{"nor","000000",'r',"100111"},{"or","000000",'r',"100101"},
         {"ori","001101",'i'},{"sltiu","001011",'i'},{"sltu","000000",'r',"101011"},{"sll","000000",'r',"000000"},{"srl","000000",'r',"000010"},{"sw","101011",'i'},{"subu","000000",'r',"100011"}
 };
+
+data data_list[6];
+label label_list[10];
+// char label[10][10][10];  // label[1][0]: main:    label[1][1]: 주소
+
 int
 main(int argc, char *argv[])
 {
@@ -88,22 +106,21 @@ main(int argc, char *argv[])
 
    
 
-    int reg[32] = {0, };
     unsigned int text_pointer = hex_to_dec("0x400000");
     unsigned int pc = hex_to_dec("0x400000");
     unsigned int data_pointer = hex_to_dec("0x10000000");
     bool dataSection = false;
     bool textSection = false;
     int row=0;
-    char ISA[32][4][15]; // 줄당, 커맨드 개수, 커맨드 담는거
+    char ISA[32][5][15]; // 줄당, 커맨드 개수, 커맨드 담는거
     char buf[128];
     char buf2[128];
 
-    char label[10][10][10];
-    char data[10][10][10]; //data1 : 100 --> data[1][1] = 100, data[1][2] = 10000000
-    int index_data = 1; //data는 1부터 시작, ISA는 0부터 시작
-    int index_label = 1;
+    //char data[10][10][10]; //data1 : 100 --> data[1][1] = 100, data[1][2] = 10000000
+    int index_data = 0; 
+    int index_label = 0; 
     int whereTextstarts;
+    int text_count=0;               // 명령어 개수 나중에 처음에 출력해야함
 
     while(fgets(buf, sizeof(buf), input)){  // reads 1 line per 1 loop
         char temp[128];
@@ -126,59 +143,76 @@ main(int argc, char *argv[])
             whereTextstarts=row;
             continue;
         }
-        if(dataSection){ // 데이터 섹션일때 @@@@@@@@@@@@@ 아직 array형식은 지원안함
-            if(strchr(ISA[row][0], ':')!=NULL){ //줄이 레이블형식일때 (array, data)
-                //if(strchr(ISA[row][1], 'w')!=NULL)
-                    strcpy(data[index_data][1], ISA[row][2]);
-                    sprintf(buf2, "%d", data_pointer);
-                    strcpy(data[index_data][2], buf2);
-                    index_data++;
-                    data_pointer+=4;
+        if(dataSection){ // 
+            if(strchr(ISA[row][0], ':')!=NULL){ //줄이 레이블형식일때 
+                strcpy(data_list[index_data].label, ISA[row][0]);
+                // sprintf(buf2, "%d", data_pointer);
+                data_list[index_data].address = data_pointer;
+                strcpy(data_list[index_data].value, ISA[row][2]);
+                index_data++;
+                data_pointer+=4;                    //나중에 출력해야함
             }
-            // else{
-            //     strcpy(data[index_data][1], ISA[row][1]);
-            //     sprintf(buf2, "%d", data_pointer);
-            //     strcpy(data[index_data][2], buf2);
-            //     index_data++;
-            //     data_pointer+=4;
-            // }
+            else{ //딸려오는 인덱스일때
+                strcpy(data_list[index_data].label, data_list[index_data-1].label);
+                // sprintf(buf2, "%d", data_pointer);
+                data_list[index_data].address = data_pointer;
+                strcpy(data_list[index_data].value, ISA[row][1]);
+                index_data++;
+                data_pointer+=4;
+            }
         }
         if(textSection){ // 텍스트섹션일때
             if(strchr(ISA[row][0], ':')!=NULL){ // 레이블일때
-                strcpy(label[index_label][1], ISA[row][0]);
-                sprintf(buf2, "%d", text_pointer);
-                strcpy(label[index_label][2], buf2);
+                strcpy(label_list[index_label].name, ISA[row][0]);
+                // sprintf(buf2, "%d", text_pointer);
+                label_list[index_label].address = text_pointer;
                 index_label++;
                 text_pointer+=4;
             }
             else{
-                text_pointer+=4;
+                sprintf(buf2, "%d", text_pointer);
+                strcpy(ISA[row][4], buf2);
+                text_pointer+=4;    
+                text_count++;
+                if(strcmp(ISA[row][0], "la")==0 && strcmp(ISA[row][2],"data1")==0)
+                    text_count++;
+
             }
-            // find instruction
         }
 
 
 
         row++;   // DON'T MOVE, KEEP VERY BELOW
     }
-
+    // for(int i=0;i<32; i++){
+    //     for(int j=0; j<5; j++){
+    //         printf("ISA[%d][%d]: %s ", i, j, ISA[i][j]);
+    //     }
+    //     printf("\n");
+    // }
+ 
     textSection=false;
     int op_index;
-    // printf("%s ", ISA[4][1]);
+    int foundData;
+    fputs(dec_to_bin(32, text_count*4), output);   // 첫 두줄
+    fputs("\n", output);
+    fputs(dec_to_bin(32, index_data*4), output);
+    fputs("\n", output);
 
-    // printf("%d", atoi(ISA[4][2]+1));
 
 
     for(int i=0; i<32; i++){     //second pass
         if(i==whereTextstarts){ 
             textSection=true;
             continue;
-        }        
-        // for(int j=0; j<4; j++){
+        }   
+        if(strcmp(ISA[i][0],"")==0) // 끝까지 가지 않기
+            break;     
         if(textSection){
             if(strchr(ISA[i][0], ':')==NULL){ //레이블아닐때
                 op_index=find_op(ISA[i][0]);
                 if(opcode_list[op_index].type=='r'){ //r type 일 때
+                    //printf("its r type!\n");
                     if(strcmp(ISA[i][0], "sll")!=0 && strcmp(ISA[i][0], "srl")!=0){  //r type에서도 srl, sll 아닐때
                         fputs(ISA[i][0], output);
                         fputs(": ", output);
@@ -200,64 +234,62 @@ main(int argc, char *argv[])
                         fputs(dec_to_bin(5,atoi(ISA[i][1]+1)), output); //rd
                         fputs(dec_to_bin(5,atoi(ISA[i][3])), output); //shamt
                         fputs(opcode_list[op_index].funct, output); //op
+
                         fputs("\n", output);
                     }
-                        // fputs(atoi(ISA[i][2]+1), output);
-                        // fputs(atoi(ISA[i][3]+1), output);
-                        //fputs(opcode_list[op_index].code, output);
+                }
+                else if(opcode_list[op_index].type=='i'){ //i type 일 때
+                   // printf("its i type!\n");
+                    if(strcmp(ISA[i][0], "la")==0){         // special case: la 일 때 
+                        if(strcmp(ISA[i][2], "data1")==0){
+                            //do lui only
+                            fputs("lui", output);
+                            fputs(": ", output);
+                            op_index=find_op("lui");
+                            fputs(opcode_list[op_index].code, output); //op
+                            fputs(dec_to_bin(5,0), output); // rs
+                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
+                            fputs(dec_to_bin(16, (data_list[0].address)/65536), output); //addr
+
+                            fputs("\n", output);
+                        }
+                        else{
+                            //do lui 
+                            fputs("lui", output);
+                            fputs(": ", output);
+                            op_index=find_op("lui");
+                            fputs(opcode_list[op_index].code, output); //op
+                            fputs(dec_to_bin(5,0), output); // rs
+                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
+                            foundData=find_dataLabel(ISA[i][2]);
+                            fputs(dec_to_bin(16, (data_list[foundData].address)/65536), output); //addr
+
+                            fputs("\n", output);
+
+                            fputs("ori", output);
+                            fputs(": ", output);
+                            op_index=find_op("ori");
+                            fputs(opcode_list[op_index].code, output); //op
+                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
+                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
+                            fputs(dec_to_bin(16, (data_list[foundData].address)-hex_to_dec("0x10000000")), output);
+
+                            fputs("\n", output);
+
+                        }
                     }
-                }   
-            }
-        // }
-        printf("\n");
+                    else{ // la를 제외한 나머지 i type일때
+                        // printf("tl: %d\n", find_textLabel("lab2"));
+
+                    }
+                }
+                else if(opcode_list[op_index].type=='j'){
+                    //printf("its j type!\n");
+                }
+            }   
+        }
     }
-    // fputs(opcode_list[0].code, output);
-    // printf("%s\n", data[3][2]);
-    // printf("%d\n", data_pointer);
-    // printf("%s\n", dec_to_bin(32, atoi(data[3][2])));
-    // printf("%s\n", dec_to_bin(32, 268435464));
-    // printf("%s\n", dec_to_bin(32, data_pointer));
     
-
-    // unsigned int datanum=0;       //둘째 output을 위해 남겨놓음
-    // datanum=data_pointer-hex_to_dec("0x10000000");
-    // unsigned int textnum=0;        // 첫 output을 위해 남겨놓음
-    // textnum=text_pointer-hex_to_dec("0x400000");
-    // printf("%u\n", datanum);
-
-
-
-    // printf("%s\n", dec_to_bin(10,15));              
-    // printf("%s\n", dec_to_bin(10,hex_to_dec("f")));
-    // printf("%s\n",bin_to_hex("1101"));
-
-
-
-
-
-
-    // for(int i=0; i<5; i++){
-    //     if(strcmp(ISA[1][i], "")==0){
-    //         printf("%d\n", i);                   measure each size
-    //         break;
-    //     }
-    // }
-
-    // char buf3[5]="abcde";
-
-    // fputs(buf3, output);
-    // fputs(buf3, output);
-
-    
-
-    
-
-    
-
-
-
-
-
 
 
 //=========================================================
@@ -366,14 +398,24 @@ int find_op(char* inst){
     }
 }
 
-void Eliminate(char *str, char ch)
-{
-    for (; *str != '\0'; str++)//종료 문자를 만날 때까지 반복
-    {
-        if (*str == ch)//ch와 같은 문자일 때
-        {
-            strcpy(str, str + 1);
-            str--;
-        }
+int find_dataLabel(char* label){
+    strcat(label, ":");
+    for(int i=0; i<6; i++){
+        if(strcmp(label, data_list[i].label)==0)
+            return i;
     }
 }
+
+int find_textLabel(char *label){
+    strcat(label, ":");
+    for(int i=0; i<10; i++){
+        if(strcmp(label, label_list[i].name)==0)
+            return i;
+    }
+}
+
+int pc_addressing(int dec){
+    return 0;
+}
+
+
