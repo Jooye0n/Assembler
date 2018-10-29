@@ -14,7 +14,7 @@ char *bin_to_hex(char* bin);
 int find_op(char* inst);
 int find_dataLabel(char* inst);
 // int pc_addressing(int dec);
-// int find_textLabel(char *label);
+int find_textLabel(char *label);
 
 
 /*******************************************************
@@ -54,7 +54,7 @@ typedef struct data{
 typedef struct label{
     char name[10];
     int address; // recorded in decimal
-}label;
+}labels;
 
 typedef int bool;
 #define true 1
@@ -67,8 +67,8 @@ opcode opcode_list[21] = {
 };
 
 data data_list[6];
-label label_list[10];
-// char label[10][10][10];  // label[1][0]: main:    label[1][1]: 주소
+
+labels label_list[10];
 
 int
 main(int argc, char *argv[])
@@ -116,7 +116,6 @@ main(int argc, char *argv[])
     char buf[128];
     char buf2[128];
 
-    //char data[10][10][10]; //data1 : 100 --> data[1][1] = 100, data[1][2] = 10000000
     int index_data = 0; 
     int index_label = 0; 
     int whereTextstarts;
@@ -164,7 +163,6 @@ main(int argc, char *argv[])
         if(textSection){ // 텍스트섹션일때
             if(strchr(ISA[row][0], ':')!=NULL){ // 레이블일때
                 strcpy(label_list[index_label].name, ISA[row][0]);
-                // sprintf(buf2, "%d", text_pointer);
                 label_list[index_label].address = text_pointer;
                 index_label++;
                 text_pointer+=4;
@@ -190,7 +188,7 @@ main(int argc, char *argv[])
     //     }
     //     printf("\n");
     // }
- 
+
     textSection=false;
     int op_index;
     int foundData;
@@ -278,18 +276,51 @@ main(int argc, char *argv[])
 
                         }
                     }
-                    else{ // la를 제외한 나머지 i type일때
-                        // printf("tl: %d\n", find_textLabel("lab2"));
-
+                    else if(strcmp(ISA[i][0], "bne")==0 || strcmp(ISA[i][0], "beq")==0){ // branch 일 때
+                        fputs(ISA[i][0], output);
+                        fputs(": ", output);
+                        op_index=find_op(ISA[i][0]);
+                        fputs(opcode_list[op_index].code, output);
+                        fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
+                        fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rt
+                        // pc addressing
+                        fputs("\n", output);
+                    }
+                    else{
+                        fputs(ISA[i][0], output);
+                        fputs(": ", output);
+                        op_index=find_op(ISA[i][0]);
+                        fputs(opcode_list[op_index].code, output);
+                        fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
+                        fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rt
+                        fputs(dec_to_bin(16, hex_to_dec(ISA[i][3])), output);
+                        fputs("\n", output);
                     }
                 }
                 else if(opcode_list[op_index].type=='j'){
                     //printf("its j type!\n");
+                    fputs(ISA[i][0], output);
+                    fputs(": ", output);
+                    op_index=find_op(ISA[i][0]);
+                    fputs(opcode_list[op_index].code, output);
+                    //direct jump addressing
+                    fputs("\n", output);
                 }
             }   
         }
     }
-    
+
+    for(int i=0; i<index_data; i++){
+        if(strchr(data_list[i].value, 'x')!=NULL){ // 주소값일때 (16진수일때) char 타입
+            fputs(dec_to_bin(32, hex_to_dec(data_list[i].value)), output);
+            fputs("\n", output);
+        }
+        else{ // 정수값일때 그래도 여전히 char 타입
+            fputs(dec_to_bin(32, atoi(data_list[i].value)), output);
+            fputs("\n", output);
+        }
+
+    }
 
 
 //=========================================================
@@ -408,14 +439,14 @@ int find_dataLabel(char* label){
 
 int find_textLabel(char *label){
     strcat(label, ":");
-    for(int i=0; i<10; i++){
+    for(int i=0; i<9; i++){
         if(strcmp(label, label_list[i].name)==0)
             return i;
     }
 }
 
-int pc_addressing(int dec){
-    return 0;
-}
+// int pc_addressing(int dec){
+//     return 0;
+// }
 
 
