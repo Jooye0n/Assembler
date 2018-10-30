@@ -220,8 +220,7 @@ main(int argc, char *argv[])
                         fputs(dec_to_bin(5,atoi(ISA[i][1]+1)), output); //rd
                         fputs(dec_to_bin(5,0), output); //shamt
                         fputs(opcode_list[op_index].funct, output); //op
-
-                        fputs(" its r type!\n", output);
+                        
                         fputs("\n", output);
                     }
                     else{
@@ -234,7 +233,6 @@ main(int argc, char *argv[])
                         fputs(dec_to_bin(5,atoi(ISA[i][3])), output); //shamt
                         fputs(opcode_list[op_index].funct, output); //op
 
-                        fputs(" its r type!\n", output);
                         fputs("\n", output);
                     }
                 }
@@ -251,7 +249,6 @@ main(int argc, char *argv[])
                             fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
                             fputs(dec_to_bin(16, (data_list[0].address)/65536), output); //addr
 
-                            fputs(" its i type!\n", output);
                             fputs("\n", output);
                         }
                         else{
@@ -265,8 +262,6 @@ main(int argc, char *argv[])
                             foundData=find_dataLabel(ISA[i][2]);
                             fputs(dec_to_bin(16, (data_list[foundData].address)/65536), output); //addr
 
-                            fputs(" its i type!\n", output);
-
                             fputs("\n", output);
 
                             fputs("ori", output);
@@ -276,8 +271,6 @@ main(int argc, char *argv[])
                             fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
                             fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
                             fputs(dec_to_bin(16, (data_list[foundData].address)-hex_to_dec("0x10000000")), output);
-
-                            fputs(" its i type!\n", output);
 
                             fputs("\n", output);
                         }
@@ -290,8 +283,6 @@ main(int argc, char *argv[])
                         fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
                         fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rt
                         // pc addressing
-                        fputs(" its i type!\n", output);
-
                         fputs("\n", output);
                     }
                     else if(strcmp(ISA[i][0], "lui")==0){ // special case3: lui 일 때
@@ -306,7 +297,6 @@ main(int argc, char *argv[])
                         else //imm 값일 때
                             fputs(dec_to_bin(16, atoi(ISA[i][2])), output);
 
-                        fputs(" its i type!\n", output);
 
                         fputs("\n", output);
                     }
@@ -323,8 +313,6 @@ main(int argc, char *argv[])
                         else //imm 값일 때
                             fputs(dec_to_bin(16, atoi(ISA[i][3])), output);
 
-                        fputs(" its i type!\n", output);
-
                         fputs("\n", output);
                     }
                 }
@@ -335,9 +323,6 @@ main(int argc, char *argv[])
                     op_index=find_op(ISA[i][0]);
                     fputs(opcode_list[op_index].code, output);
                     //direct jump addressing
-
-                    fputs(" its j type!\n", output);
-
                     fputs("\n", output);
                 }
             }   
