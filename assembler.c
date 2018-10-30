@@ -192,9 +192,9 @@ main(int argc, char *argv[])
     int op_index;
     int foundData;
     fputs(dec_to_bin(32, text_count*4), output);   // 첫 두줄
-    // fputs("\n", output);
+    fputs("\n", output);
     fputs(dec_to_bin(32, index_data*4), output);
-    // fputs("\n", output);
+    fputs("\n", output);
 
 
 
@@ -212,8 +212,8 @@ main(int argc, char *argv[])
                 if(opcode_list[op_index].type=='r'){ //r type 일 때
                     //printf(" its r type!\n");
                     if(strcmp(ISA[i][0], "sll")!=0 && strcmp(ISA[i][0], "srl")!=0){  //r type에서도 srl, sll 아닐때
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
+                        fputs(ISA[i][0], output);
+                        fputs(": ", output);
                         fputs(opcode_list[op_index].code, output); //op
                         fputs(dec_to_bin(5,atoi(ISA[i][2]+1)), output); //rs
                         fputs(dec_to_bin(5,atoi(ISA[i][3]+1)), output); //rt
@@ -221,11 +221,11 @@ main(int argc, char *argv[])
                         fputs(dec_to_bin(5,0), output); //shamt
                         fputs(opcode_list[op_index].funct, output); //op
                         
-                        // fputs("\n", output);
+                        fputs("\n", output);
                     }
                     else{
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
+                        fputs(ISA[i][0], output);
+                        fputs(": ", output);
                         fputs(opcode_list[op_index].code, output); //op
                         fputs(dec_to_bin(5,0), output); //rs
                         fputs(dec_to_bin(5,atoi(ISA[i][2]+1)), output); //rt
@@ -233,7 +233,7 @@ main(int argc, char *argv[])
                         fputs(dec_to_bin(5,atoi(ISA[i][3])), output); //shamt
                         fputs(opcode_list[op_index].funct, output); //op
 
-                        // fputs("\n", output);
+                        fputs("\n", output);
                     }
                 }
                 else if(opcode_list[op_index].type=='i'){ //i type 일 때
@@ -241,20 +241,20 @@ main(int argc, char *argv[])
                     if(strcmp(ISA[i][0], "la")==0){         // special case1: la 일 때 
                         if(strcmp(ISA[i][2], "data1")==0){
                             //do lui only
-                            // fputs("lui", output);
-                            // fputs(": ", output);
+                            fputs("lui", output);
+                            fputs(": ", output);
                             op_index=find_op("lui");
                             fputs(opcode_list[op_index].code, output); //op
                             fputs(dec_to_bin(5,0), output); // rs
                             fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
                             fputs(dec_to_bin(16, (data_list[0].address)/65536), output); //addr
 
-                            // fputs("\n", output);
+                            fputs("\n", output);
                         }
                         else{
                             //do lui 
-                            // fputs("lui", output);
-                            // fputs(": ", output);
+                            fputs("lui", output);
+                            fputs(": ", output);
                             op_index=find_op("lui");
                             fputs(opcode_list[op_index].code, output); //op
                             fputs(dec_to_bin(5,0), output); // rs
@@ -262,32 +262,32 @@ main(int argc, char *argv[])
                             foundData=find_dataLabel(ISA[i][2]);
                             fputs(dec_to_bin(16, (data_list[foundData].address)/65536), output); //addr
 
-                            // fputs("\n", output);
+                            fputs("\n", output);
 
-                            // fputs("ori", output);
-                            // fputs(": ", output);
+                            fputs("ori", output);
+                            fputs(": ", output);
                             op_index=find_op("ori");
                             fputs(opcode_list[op_index].code, output); //op
                             fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
                             fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
                             fputs(dec_to_bin(16, (data_list[foundData].address)-hex_to_dec("0x10000000")), output);
 
-                            // fputs("\n", output);
+                            fputs("\n", output);
                         }
                     }
                     else if(strcmp(ISA[i][0], "bne")==0 || strcmp(ISA[i][0], "beq")==0){ // special case2: branch 일 때
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
+                        fputs(ISA[i][0], output);
+                        fputs(": ", output);
                         op_index=find_op(ISA[i][0]);
                         fputs(opcode_list[op_index].code, output);
                         fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
                         fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rt
                         // pc addressing
-                        // fputs("\n", output);
+                        fputs("\n", output);
                     }
                     else if(strcmp(ISA[i][0], "lui")==0){ // special case3: lui 일 때
-                        // fputs("lui", output);
-                        // fputs(": ", output);
+                        fputs("lui", output);
+                        fputs(": ", output);
                         op_index=find_op("lui");
                         fputs(opcode_list[op_index].code, output); //op
                         fputs(dec_to_bin(5,0), output); // rs
@@ -298,11 +298,11 @@ main(int argc, char *argv[])
                             fputs(dec_to_bin(16, atoi(ISA[i][2])), output);
 
 
-                        // fputs("\n", output);
+                        fputs("\n", output);
                     }
                     else{                   //그 외 i type 일 때
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
+                        fputs(ISA[i][0], output);
+                        fputs(": ", output);
                         op_index=find_op(ISA[i][0]);
                         fputs(opcode_list[op_index].code, output);
                         fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rs
@@ -313,17 +313,17 @@ main(int argc, char *argv[])
                         else //imm 값일 때
                             fputs(dec_to_bin(16, atoi(ISA[i][3])), output);
 
-                        // fputs("\n", output);
+                        fputs("\n", output);
                     }
                 }
                 else if(opcode_list[op_index].type=='j'){
                     //printf("its j type!\n");
-                    // fputs(ISA[i][0], output);
-                    // fputs(": ", output);
+                    fputs(ISA[i][0], output);
+                    fputs(": ", output);
                     op_index=find_op(ISA[i][0]);
                     fputs(opcode_list[op_index].code, output);
                     //direct jump addressing
-                    // fputs("\n", output);
+                    fputs("\n", output);
                 }
             }   
         }
@@ -332,11 +332,11 @@ main(int argc, char *argv[])
     for(int i=0; i<index_data; i++){
         if(strchr(data_list[i].value, 'x')!=NULL){ // 주소값일때 (16진수일때) char 타입
             fputs(dec_to_bin(32, hex_to_dec(data_list[i].value)), output);
-            // fputs("\n", output);
+            fputs("\n", output);
         }
         else{ // 정수값일때 그래도 여전히 char 타입
             fputs(dec_to_bin(32, atoi(data_list[i].value)), output);
-            // fputs("\n", output);
+            fputs("\n", output);
         }
     }
 
