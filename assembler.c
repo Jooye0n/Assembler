@@ -177,17 +177,15 @@ main(int argc, char *argv[])
                     text_count++;
             }
         }
-
-
-
+        
         row++;   // DON'T MOVE, KEEP VERY BELOW
     }
-    for(int i=0;i<32; i++){
-        for(int j=0; j<5; j++){
-            printf("ISA[%d][%d]: %s ", i, j, ISA[i][j]);
-        }
-        printf("\n");
-    }
+    // for(int i=0;i<32; i++){
+    //     for(int j=0; j<5; j++){
+    //         printf("ISA[%d][%d]: %s ", i, j, ISA[i][j]);
+    //     }
+    //     printf("\n");
+    // }
 
     textSection=false;
     int op_index;
@@ -201,7 +199,7 @@ main(int argc, char *argv[])
 
 
 
-    for(int i=0; i<32; i++){     //second pass
+    for(int i=0; i<row; i++){     //second pass
         if(i==whereTextstarts){ 
             textSection=true;
             continue;
