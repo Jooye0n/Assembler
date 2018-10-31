@@ -206,8 +206,10 @@ main(int argc, char *argv[])
             textSection=true;
             continue;
         }   
-        if(strcmp(ISA[i][0],"")==0) // 끝까지 가지 않기
-            break;     
+        if(strcmp(ISA[i][0],"")==0 || strcmp(ISA[i][0],"\0")==0){
+            printf("just met %d and goodbye \n", i); // 끝까지 가지 않기
+            break;
+        }     
         if(textSection){
             if(strchr(ISA[i][0], ':')==NULL){ //레이블아닐때
                 op_index=find_op(ISA[i][0]);
@@ -465,6 +467,8 @@ int find_op(char* inst){
         if(strcmp(inst, opcode_list[i].name)==0)
             return i;
     }
+    printf("couldn't find_op\n");
+    return -1;
 }
 
 int find_dataLabel(char* label){
@@ -473,6 +477,8 @@ int find_dataLabel(char* label){
         if(strcmp(label, data_list[i].label)==0)
             return i;
     }
+    printf("couldn't find_dataLabel\n");
+    return -1;
 }
 
 int find_textLabel(char *label){
@@ -481,6 +487,8 @@ int find_textLabel(char *label){
         if(strcmp(label, label_list[i].name)==0)
             return i;
     }
+    printf("couldn't find_op\n");
+    return -1;
 }
 
 // int pc_addressing(int dec){
