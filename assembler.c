@@ -200,6 +200,7 @@ main(int argc, char *argv[])
 
 
 
+
     for(int i=0; i<32; i++){     //second pass
         if(i==whereTextstarts){ 
             textSection=true;
@@ -269,6 +270,8 @@ main(int argc, char *argv[])
                             fputs(" its i type!\n", output);
 
                             fputs("\n", output);
+
+                            //do ori
 
                             fputs("ori", output);
                             fputs(": ", output);

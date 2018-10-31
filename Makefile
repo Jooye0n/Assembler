@@ -7,7 +7,7 @@ all: assembler
 	$(CC) -c $^
 
 $(TAR): assembler.o
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ -lm
 
 .PHONY: clean test help
 
