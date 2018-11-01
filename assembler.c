@@ -15,9 +15,6 @@ char *bin_to_hex(char *bin);
 int find_op(char *inst);
 int find_dataLabel(char *data);
 int find_textLabel(char *label);
-int pc_addressing(int dec);
-int direct_addressing(int dec);
-
 /*******************************************************
  * Function: main
  *
@@ -103,8 +100,6 @@ main(int argc, char *argv[])
     // text starts from 0x400000
     // data starts from 0x10000000
 
-   
-
     unsigned int text_pointer = hex_to_dec("0x400000");
     unsigned int pc = hex_to_dec("0x400000");
     unsigned int data_pointer = hex_to_dec("0x10000000");
@@ -162,47 +157,28 @@ main(int argc, char *argv[])
                 strcpy(label_list[index_label].name, ISA[row][0]);
                 label_list[index_label].address = text_pointer;
                 index_label++;
-                text_pointer+=4;   // 만약 성헌이 주소체계맞으면 이거 없앤다. @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
             }
             else{
                 sprintf(buf2, "%d", text_pointer);
                 strcpy(ISA[row][4], buf2);
                 text_pointer+=4;    
                 text_count++;
-                if(strcmp(ISA[row][0], "la")==0 && strcmp(ISA[row][2],"data1")!=0)
+                if(strcmp(ISA[row][0], "la")==0 && strcmp(ISA[row][2],"data1")!=0){
                     text_count++;
+                    text_pointer+=4;
+                }
             }
         }
         
         row++;   // DON'T MOVE, KEEP VERY BELOW
     }
+    
     // for(int i=0;i<row; i++){
     //     for(int j=0; j<5; j++){
     //         printf("ISA[%d][%d]: %s ", i, j, ISA[i][j]);
     //     }
     //     printf("\n");
     // }
-
-    // printf("%d\n", atoi("-16($3)"));
-    // printf("%d\n", atoi(ISA[6][2]+2));
-
-    // printf("%d\n", atoi(ISA[6][2]+3));
-
-    // char tempo[10];
-    // int in=0;
-    // char *ptr3 = strtok(ISA[6][2], "(");
-    //     do{
-    //         strcpy(tempo, ptr3);
-    //         in++;
-    //     }while (ptr3 = strtok(NULL, "("));
-
-    // printf("%d\n", atoi(tempo+1));
-    // printf("%d\n", atoi(ISA[6][2]));
-
-       
-
-    // printf("%d\n", find_dataLabel(ISA[6][2]));
-    // printf("%d\n", find_textLabel(ISA[6][2]));
 
     textSection=false;
     int op_index;
@@ -211,10 +187,6 @@ main(int argc, char *argv[])
     // fputs("\n", output);
     fputs(dec_to_bin(32, index_data*4), output);
     // fputs("\n", output);
-
-
-
-
 
     for(int i=0; i<row; i++){     //second pass
         if(i==whereTextstarts){ 
@@ -323,16 +295,15 @@ main(int argc, char *argv[])
                         // fputs(ISA[i][0], output);
                         // fputs(": ", output);
 
+                        int offset=0;
                         op_index=find_op(ISA[i][0]);
                         fputs(opcode_list[op_index].code, output); //op
                         fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
                         fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rt
                         // pc addressing
                         foundData=find_textLabel(ISA[i][3]);
-                        printf("%s\n", label_list[foundData].name);
-                        printf("%d\n", label_list[foundData].address);
-
-
+                        offset=(label_list[foundData].address-(atoi(ISA[i][4])+4))/4;
+                        fputs(dec_to_bin(16, offset), output); //addr
                         // fputs(" its i type!\n", output);
                         // fputs("\n", output);
                     }
@@ -368,12 +339,9 @@ main(int argc, char *argv[])
                             strcpy(tempo, ptr3);
                             in++;
                         }while (ptr3 = strtok(NULL, "("));
-
-                        // printf("%d\n", atoi(tempo+1)); //괄호 오룬쪽 rs
                         fputs(dec_to_bin(5, atoi(tempo+1)), output); //rs
                         fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
                         fputs(dec_to_bin(16, atoi(ISA[i][2])), output); //addr
-                        // printf("%d\n", atoi(ISA[6][2])); // 괄호 왼쪽
 
                         // fputs(" its i type!\n", output);
                         // fputs("\n", output);
@@ -405,6 +373,8 @@ main(int argc, char *argv[])
                     op_index=find_op(ISA[i][0]); 
                     fputs(opcode_list[op_index].code, output); //op
                     //direct jump addressing
+                    foundData=find_textLabel(ISA[i][1]);
+                    fputs(dec_to_bin(26, (label_list[foundData].address)/4), output);
 
                     // fputs(" its j type!\n", output);
                     // fputs("\n", output);
@@ -546,8 +516,6 @@ int find_dataLabel(char* data){
 }
 
 int find_textLabel(char *label){
-    // char *ptr;
-    // ptr = 
     strcat(label, ":");
     for(int i=0; i<9; i++){
         if(strcmp(label, label_list[i].name)==0)
@@ -556,12 +524,3 @@ int find_textLabel(char *label){
     printf("couldn't find_textLabel\n");
     return -1;
 }
-
-int pc_addressing(int dec){
-    return 0;
-}
-
-int direct_addressing(int dec){
-    return 0;
-}
-
