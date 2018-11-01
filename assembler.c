@@ -37,7 +37,7 @@ int find_textLabel(char *label);
  *******************************************************/
 
 typedef struct opcode{
-    char name[10];
+    char* name;
     char* code;
     char type;
     char* funct;
