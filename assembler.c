@@ -11,7 +11,6 @@
 char *change_file_ext(char *str);
 char *dec_to_bin(int k, int n); //자리수, 숫자
 int hex_to_dec(char *hex);
-char *bin_to_hex(char *bin);
 int find_op(char *inst);
 int find_dataLabel(char *data);
 int find_textLabel(char *label);
@@ -101,7 +100,6 @@ main(int argc, char *argv[])
     // data starts from 0x10000000
 
     unsigned int text_pointer = hex_to_dec("0x400000");
-    unsigned int pc = hex_to_dec("0x400000");
     unsigned int data_pointer = hex_to_dec("0x10000000");
     bool dataSection = false;
     bool textSection = false;
@@ -484,16 +482,6 @@ int hex_to_dec(char* hex){
 
     return decimal;
 
-}
-
-char *bin_to_hex(char* bin){
-    int value = (int)strtol(bin, NULL, 2);
-    char hexString[12];
-    sprintf(hexString, "%x", value);
-    char *hex;
-    strcpy(hex, hexString);
-
-    return hex;
 }
 
 int find_op(char* inst){
