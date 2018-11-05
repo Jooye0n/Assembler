@@ -1,0 +1,26 @@
+Minhyung Kim (21):
+      Implementing first loop
+      r type good
+      Processing.. just to record
+      Done except for PC&direct addressing and still have to try with other examples(example2-5).
+      example 2 has passed
+      applying on Ubuntu env.
+      applying #2
+      apply #3
+      apply #4
+      apply #5
+      apply new
+      apply 6
+      Makefile modified
+      applying final maybe
+      hopefully last applying..
+      hopefully last apply..
+      Finally!! synchronized..
+      example 2&3 passedexample 2&3 passed
+      Done
+      Assignment complete
+      Assignment complete
+
+Wonkyo Choe (1):
+      Initial commit
+
