@@ -2,18 +2,86 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <math.h>
+#include <ctype.h>
+
+#define BITSIZE 0x10
+#define OFFSET 0x100
+#define STARTDATA 0x10000000
+#define STARTTEXT 0x00400000
 
 /*******************************************************
  * Function Declaration
  *
  *******************************************************/
 char *change_file_ext(char *str);
-char *dec_to_bin(int k, int n); //자리수, 숫자
-int hex_to_dec(char *hex);
-int find_op(char *inst);
-int find_dataLabel(char *data);
-int find_textLabel(char *label);
+int decimal_to_biinary(int decimal);
+int value_to_int(char num[]);
+void change_to_binary();
+void read_instruction(FILE* input);
+void read_assemble(FILE* input);
+void read_text(FILE* input);
+void write_obj_file(FILE* output);
+
+struct Instruction { //¡§«ÿ¡Æ ¿÷¿∏π«∑Œ πŸ≤Ó¡ˆ æ ¥¬ ∞ÕµÈ
+    char name[BITSIZE] = { '\0', };
+    char opcode[BITSIZE] = { '\0', };
+    char format[BITSIZE] = { '\0', };
+    char funct[BITSIZE] = { '\0', };
+};
+
+struct Instruction inst[20] = { //≥™¡ﬂø° 22 ª˝∑´«ÿ∫∏±‚
+    { "addiu", "001001", 'I',"" }, //0
+    { "addu", "000000", 'R',"100001" }, //1
+    { "and", "000000", 'R',"100100" },//2
+    { "andi", "001100", 'I', "" },//3
+    { "beq","000100", 'I', "" },//4
+    { "bne", "000101", 'I', "" },//5
+    { "j", "000010", 'J', "" },//6
+    { "jal", "000011", 'J', "" },//7
+    { "jr", "000000", 'R',"001000" },//8
+    { "lui", "001111", 'I', "" },//9
+    { "lw", "100011", 'I', "" },//10
+    { "nor", "000000", 'R' , "100111" },//11
+    { "or", "000000", 'R', "100101" },//12
+    { "ori", "001101", 'I', "" },//13
+    { "sltiu", "001011",'I' ,"" },//14
+    { "sltu", "000000", 'R', "101011" },//15
+    { "sll", "000000", 'R' ,"000000" },//16
+    { "srl", "000000", 'R', "000010" },//17
+    { "sw", "101011", 'I', "" },//18
+    { "subu", "000000", 'R', "100011" }//19
+};
+
+struct Data {
+    char label[BITSIZE] = { '\0', };
+    char value[BITSIZE] = { '\0', };
+    unsigned int address = 0;//Ω«¡¶ ∏ﬁ∏∏Æ ¡÷º“
+}__attribute__((packed));
+
+struct Text { //instruction ¡ﬂ ¡§«ÿ¡Æ¿÷¡ˆ æ ¿∫ ∞ÕµÈ
+    int inst_idx = 0;//∏Óπ¯¬∞ inst¿Œ¡ˆ
+    int rs = 0;
+    int rt = 0;
+    int rd = 0;
+    int shamt = 0;
+    int immediate = 0;
+    int j_address = 0;//≥™¡ﬂø° ¥Ÿ ¿–∞Ì ≥≠ »ƒimme∞˙ addΩœ ∏æ∆º≠ ¿˙¿Â«ÿµ– ¡÷º“∑Œ πŸ≤„¡÷¿⁄
+    unsigned int address = 0;//Ω«¡¶ ∏ﬁ∏∏Æ ¡÷º“
+
+}__attribute__((packed));
+
+struct Label {
+    char name[BITSIZE] = { '\0', };
+    unsigned int address = 0;//Ω«¡¶ ∏ﬁ∏∏Æ ¡÷º“
+}__attribute__((packed));
+
+struct Label label[OFFSET] = { '\0', };//√π π¯¬∞ ¿–¿ª ∂ß ∏µÁ ∂Û∫ß ∫∞ ¡÷º“ ¿˙¿Â
+struct Text text[OFFSET] = { '\0', };//µŒ π¯¬∞ ¿–¿ª ∂ß text instruction¿–æÓº≠ ¿¸∫Œ º˝¿⁄∑Œ
+struct Data data[OFFSET] = { '\0', };//data
+
+int datasize = 0;
+int textsize = 0;
+
 /*******************************************************
  * Function: main
  *
@@ -35,368 +103,42 @@ int find_textLabel(char *label);
  *
  *******************************************************/
 
-typedef struct opcode{
-    char* name;
-    char* code;
-    char type;
-    char* funct;
-}opcode;
 
-typedef struct data{
-    char label[10];
-    char value[20];
-    int address; // recorded in decimal
-}data;
-
-typedef struct label{
-    char name[10];
-    int address; // recorded in decimal
-}labels;
-
-typedef int bool;
-#define true 1
-#define false 0
-
-opcode opcode_list[21] = {
-        {"addiu","001001",'i'},{"addu","000000",'r',"100001"},{"and","000000",'r',"100100"},{"andi","001100",'i'},{"beq","000100",'i'},{"bne","000101",'i'},{"j","000010",'j'},
-        {"jal","000011",'j'},{"jr","000000",'r',"001000"},{"lui","001111",'i'},{"lw","100011",'i'},{"la","111111",'i',"001101"},{"nor","000000",'r',"100111"},{"or","000000",'r',"100101"},
-        {"ori","001101",'i'},{"sltiu","001011",'i'},{"sltu","000000",'r',"101011"},{"sll","000000",'r',"000000"},{"srl","000000",'r',"000010"},{"sw","101011",'i'},{"subu","000000",'r',"100011"}
-};
-data data_list[6];
-labels label_list[10];
-
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     FILE *input, *output;
     char *filename;
 
     if (argc != 2) {
-        fprintf(stderr, "Usage: %s <*.s>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <*.s>\n", argv[0]);//0π¯¿∫ assembler 1π¯¿∫ .s∆ƒ¿œ
         fprintf(stderr, "Example: %s sample_input/example?.s\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    input = fopen(argv[1], "r");
-    if (input == NULL) {
+    input = fopen(argv[1], "r");//.s ∆ƒ¿œø≠±‚
+    if (input == NULL) {//.s ∆ƒ¿œæ¯¥¬∞ÊøÏ øπø‹√≥∏Æ
         perror("ERROR");
         exit(EXIT_FAILURE);
     }
 
-    filename = strdup(argv[1]); // strdup() is not a standard C library but fairy used a lot.
-    if(change_file_ext(filename) == NULL) {
+    filename = strdup(argv[1]); //argv[1]∏¶ filename¿∏∑Œ ∫π¡¶ »ƒ ªÁ∫ª ¿Œº‚
+    if (change_file_ext(filename) == NULL) {//.s ∆ƒ¿œ¿Ã æ¯¥¬ ∞ÊøÏ øπø‹√≥∏Æ
         fprintf(stderr, "'%s' file is not an assembly file.\n", filename);
         exit(EXIT_FAILURE);
     }
 
-    output = fopen(filename, "w");
+    output = fopen(filename, "w");//fliename.o∏¶ æ¥¥Ÿ.
     if (output == NULL) {
         perror("ERROR");
         exit(EXIT_FAILURE);
     }
-//=========================================================
 
-    // text starts from 0x400000
-    // data starts from 0x10000000
+    // process();
+    read_assemble(input);
+    change_to_binary();
+    write_obj_file(output);
 
-    unsigned int text_pointer = hex_to_dec("0x400000");
-    unsigned int data_pointer = hex_to_dec("0x10000000");
-    bool dataSection = false;
-    bool textSection = false;
-    int row=0;
-    char ISA[32][5][15]; // 줄당, 커맨드 개수, 커맨드 담는거
-    char buf[128];
-    char buf2[128];
 
-    int index_data = 0; 
-    int index_label = 0; 
-    int whereTextstarts;
-    int text_count=0;               // 명령어 개수 나중에 처음에 출력해야함
-
-    while(fgets(buf, sizeof(buf), input)){  // reads 1 line per 1 loop
-        char temp[128];
-        strcpy(temp, buf);
-        int col=0;
-
-        char *ptr = strtok(temp, " \t\n");
-        do{
-            strcpy(ISA[row][col], ptr);
-            col++;
-        }while (ptr = strtok(NULL, " \t\n"));
-       
-        if(strcmp(ISA[row][0], ".data")==0){
-            dataSection=true;
-            continue;  //컨티뉴하면 ISA가 안넣음 --> 안넣어도된다고 가정
-        }
-        if(strcmp(ISA[row][0], ".text")==0){
-            textSection=true;
-            dataSection=false;
-            whereTextstarts=row;
-            continue;
-        }
-        if(dataSection){ // 
-            if(strchr(ISA[row][0], ':')!=NULL){ //줄이 레이블형식일때 
-                strcpy(data_list[index_data].label, ISA[row][0]);
-                data_list[index_data].address = data_pointer;
-                strcpy(data_list[index_data].value, ISA[row][2]);
-                index_data++;
-                data_pointer+=4;                    //나중에 출력해야함
-            }
-            else{ //딸려오는 인덱스일때
-                strcpy(data_list[index_data].label, data_list[index_data-1].label);
-                data_list[index_data].address = data_pointer;
-                strcpy(data_list[index_data].value, ISA[row][1]);
-                index_data++;
-                data_pointer+=4;
-            }
-        }
-        if(textSection){ // 텍스트섹션일때
-            if(strchr(ISA[row][0], ':')!=NULL){ // 레이블일때
-                strcpy(label_list[index_label].name, ISA[row][0]);
-                label_list[index_label].address = text_pointer;
-                index_label++;
-            }
-            else{
-                sprintf(buf2, "%d", text_pointer);
-                strcpy(ISA[row][4], buf2);
-                text_pointer+=4;    
-                text_count++;
-                if(strcmp(ISA[row][0], "la")==0 && strcmp(ISA[row][2],"data1")!=0){
-                    text_count++;
-                    text_pointer+=4;
-                }
-            }
-        }
-        
-        row++;   // DON'T MOVE, KEEP VERY BELOW
-    }
-    
-    // for(int i=0;i<row; i++){
-    //     for(int j=0; j<5; j++){
-    //         printf("ISA[%d][%d]: %s ", i, j, ISA[i][j]);
-    //     }
-    //     printf("\n");
-    // }
-
-    textSection=false;
-    int op_index;
-    int foundData;
-    fputs(dec_to_bin(32, text_count*4), output);   // 첫 두줄
-    // fputs("\n", output);
-    fputs(dec_to_bin(32, index_data*4), output);
-    // fputs("\n", output);
-
-    for(int i=0; i<row; i++){     //second pass
-        if(i==whereTextstarts){ 
-            textSection=true;
-            continue;
-        }   
-        if(textSection){
-            if(strchr(ISA[i][0], ':')==NULL){ //레이블아닐때
-                op_index=find_op(ISA[i][0]);
-                if(opcode_list[op_index].type=='r'){ //r type 일 때
-                    if(strcmp(ISA[i][0], "sll")!=0 && strcmp(ISA[i][0], "srl")!=0 && strcmp(ISA[i][0], "jr")!=0){  //r type에서 jr ,srl, sll 아닐때
-
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
-
-                        fputs(opcode_list[op_index].code, output); //op
-                        fputs(dec_to_bin(5,atoi(ISA[i][2]+1)), output); //rs
-                        fputs(dec_to_bin(5,atoi(ISA[i][3]+1)), output); //rt
-                        fputs(dec_to_bin(5,atoi(ISA[i][1]+1)), output); //rd
-                        fputs(dec_to_bin(5,0), output); //shamt
-                        fputs(opcode_list[op_index].funct, output); //funct
-
-                        // fputs(" its r type!\n", output);
-                        // fputs("\n", output);
-                    }
-                    else if(strcmp(ISA[i][0], "jr")==0){ //jr 일때
-
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
-
-                        fputs(opcode_list[op_index].code, output); //op
-                        fputs(dec_to_bin(5,atoi(ISA[i][1]+1)), output); //rs
-                        fputs(dec_to_bin(5,0), output); //rt 
-                        fputs(dec_to_bin(5,0), output); //rd
-                        fputs(dec_to_bin(5,0), output); //shmat
-                        fputs(opcode_list[op_index].funct, output); //funct
-
-                        // fputs(" its r type!\n", output);
-                        // fputs("\n", output);
-
-                    }
-                    else{ // shift 일때
-
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
-
-                        fputs(opcode_list[op_index].code, output); //op
-                        fputs(dec_to_bin(5,0), output); //rs
-                        fputs(dec_to_bin(5,atoi(ISA[i][2]+1)), output); //rt
-                        fputs(dec_to_bin(5,atoi(ISA[i][1]+1)), output); //rd
-                        fputs(dec_to_bin(5,atoi(ISA[i][3])), output); //shamt
-                        fputs(opcode_list[op_index].funct, output); //funct
-
-                        // fputs(" its r type!\n", output);
-                        // fputs("\n", output);
-                    }
-                }
-                else if(opcode_list[op_index].type=='i'){ //i type 일 때
-                    if(strcmp(ISA[i][0], "la")==0){         // special case1: la 일 때 
-                        if(strcmp(ISA[i][2], "data1")==0){
-                            //do lui only
-                            // fputs("lui", output);
-                            // fputs(": ", output);
-
-                            op_index=find_op("lui");
-                            fputs(opcode_list[op_index].code, output); //op
-                            fputs(dec_to_bin(5,0), output); // rs
-                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
-                            fputs(dec_to_bin(16, (data_list[0].address)/65536), output); //addr
-
-                            // fputs(" its i type!\n", output);
-                            // fputs("\n", output);
-                        }
-                        else{
-                            //do lui 
-                            // fputs("lui", output);
-                            // fputs(": ", output);
-
-                            op_index=find_op("lui");
-                            fputs(opcode_list[op_index].code, output); //op
-                            fputs(dec_to_bin(5,0), output); // rs
-                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
-                            foundData=find_dataLabel(ISA[i][2]);
-                            fputs(dec_to_bin(16, (data_list[foundData].address)/65536), output); //addr
-
-                            // fputs(" its i type!\n", output);
-                            // fputs("\n", output);
-
-                            //do ori
-
-                            // fputs("ori", output);
-                            // fputs(": ", output);
-
-                            op_index=find_op("ori");
-                            fputs(opcode_list[op_index].code, output); //op
-                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
-                            fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
-                            fputs(dec_to_bin(16, (data_list[foundData].address)-hex_to_dec("0x10000000")), output); //addr
-
-                            // fputs(" its i type!\n", output);
-                            // fputs("\n", output);
-                        }
-                    }
-                    else if(strcmp(ISA[i][0], "bne")==0 || strcmp(ISA[i][0], "beq")==0){ // special case2: branch 일 때
-
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
-
-                        int offset=0;
-                        op_index=find_op(ISA[i][0]);
-                        fputs(opcode_list[op_index].code, output); //op
-                        fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rs
-                        fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rt
-                        // pc addressing
-                        foundData=find_textLabel(ISA[i][3]);
-                        offset=(label_list[foundData].address-(atoi(ISA[i][4])+4))/4;
-                        fputs(dec_to_bin(16, offset), output); //addr
-                        // fputs(" its i type!\n", output);
-                        // fputs("\n", output);
-                    }
-                    else if(strcmp(ISA[i][0], "lui")==0){ // special case3: lui 일 때
-
-                        // fputs("lui", output);
-                        // fputs(": ", output);
-
-                        op_index=find_op("lui");
-                        fputs(opcode_list[op_index].code, output); //op
-                        fputs(dec_to_bin(5,0), output); // rs
-                        fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
-                        if(strchr(ISA[i][2], 'x')!=NULL) // 16진수 주소값일때 (16진수일때) char 타입    
-                            fputs(dec_to_bin(16, hex_to_dec(ISA[i][2])), output);
-                        else //imm 값일 때
-                            fputs(dec_to_bin(16, atoi(ISA[i][2])), output);
-
-                        // fputs(" its i type!\n", output);
-                        // fputs("\n", output);
-                    }
-                    else if(strcmp(ISA[i][0], "lw")==0 || strcmp(ISA[i][0], "sw")==0){
-
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
-
-                        op_index=find_op(ISA[i][0]);
-                        fputs(opcode_list[op_index].code, output); //op
-
-                        char tempo[10];
-                        int in=0;
-                        char *ptr3 = strtok(ISA[i][2], "(");
-                        do{
-                            strcpy(tempo, ptr3);
-                            in++;
-                        }while (ptr3 = strtok(NULL, "("));
-                        fputs(dec_to_bin(5, atoi(tempo+1)), output); //rs
-                        fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
-                        fputs(dec_to_bin(16, atoi(ISA[i][2])), output); //addr
-
-                        // fputs(" its i type!\n", output);
-                        // fputs("\n", output);
-                    }
-                    else{                   //그 외 i type 일 때
-
-                        // fputs(ISA[i][0], output);
-                        // fputs(": ", output);
-
-                        op_index=find_op(ISA[i][0]);
-                        fputs(opcode_list[op_index].code, output); //op
-                        fputs(dec_to_bin(5, atoi(ISA[i][2]+1)), output); //rs
-                        fputs(dec_to_bin(5, atoi(ISA[i][1]+1)), output); //rt
-
-                        if(strchr(ISA[i][3], 'x')!=NULL) // 주소값일때 (16진수일때) char 타입    
-                            fputs(dec_to_bin(16, hex_to_dec(ISA[i][3])), output);
-                        else //imm 값일 때
-                            fputs(dec_to_bin(16, atoi(ISA[i][3])), output);
-
-                        // fputs(" its i type!\n", output);
-                        // fputs("\n", output);
-                    }
-                }
-                else if(opcode_list[op_index].type=='j'){
-
-                    // fputs(ISA[i][0], output);
-                    // fputs(": ", output);
-
-                    op_index=find_op(ISA[i][0]); 
-                    fputs(opcode_list[op_index].code, output); //op
-                    //direct jump addressing
-                    foundData=find_textLabel(ISA[i][1]);
-                    fputs(dec_to_bin(26, (label_list[foundData].address)/4), output);
-
-                    // fputs(" its j type!\n", output);
-                    // fputs("\n", output);
-                }
-            }   
-        }
-    }
-
-    for(int i=0; i<index_data; i++){
-        if(strchr(data_list[i].value, 'x')!=NULL){ // 주소값일때 (16진수일때) char 타입
-            fputs(dec_to_bin(32, hex_to_dec(data_list[i].value)), output);
-
-            // fputs("\n", output);
-        }
-        else{ // 정수값일때 그래도 여전히 char 타입
-            fputs(dec_to_bin(32, atoi(data_list[i].value)), output);
-
-            // fputs("\n", output);
-        }
-    }
-
-    fputs("\n", output);
-
-//=========================================================
     fclose(input);
     fclose(output);
     exit(EXIT_SUCCESS);
@@ -419,8 +161,7 @@ main(int argc, char *argv[])
  *  object extention name, *.o
  *
  *******************************************************/
-char
-*change_file_ext(char *str)
+char *change_file_ext(char *str)//∆ƒ¿œ ¿Ã∏ß¿ªπﬁ¿∏∏È Ω««‡∆ƒ¿œ∑Œ ∫Ø∞Ê«œø© return ""¡ÿ¥Ÿ.
 {
     char *dot = strrchr(str, '.');
 
@@ -432,83 +173,302 @@ char
     return "";
 }
 
-char *dec_to_bin(int k, int n)
-{
-    int c, d, count;
-    char *pointer;
-    
-    count = 0;
-    pointer = (char*)malloc(32+1);
-    
-    if(pointer == NULL)
-        exit(EXIT_FAILURE);
-    
-    for(c = k-1; c >= 0; c--){
-        d = n >> c;
-        
-        if(d & 1)
-            *(pointer+count) = 1 + '0';
-        else
-            *(pointer+count) = 0 + '0';
+int decimal_to_biinary(int decimal) {//10->2¡¯ºˆ∑Œ ∫Ø»Ø
+    long binary, sum = 0, i = 1;
 
-        count++;
-    }
-    *(pointer+count) = '\0';
-    
-    return pointer;
-}
-
-int hex_to_dec(char* hex){
-    int decimal = 0;
-
-    int position = 0;
-    for (int i = strlen(hex) - 1; i >= 0; i--)
+    while (decimal>0)
     {
-        char ch = hex[i];
-        if (ch >= 48 && ch <= 57)
-        {
-            decimal += (ch - 48) * pow(16, position);
+        binary = decimal % 2;
+        sum += binary * i;
+        decimal = decimal / 2;
+        i *= 10;
+    }
+    return sum;
+}
+
+int value_to_int(char num[]) {//$10, -> 10(int)
+    char result[30] = { '\0', };
+    int j = 0;
+    int i;
+    for (i = 0; num[i] != '\0'; i++) {
+        if (isdigit(num[i])) {
+            result[j++] = num[i];
         }
-        else if (ch >= 65 && ch <= 70){
-            decimal += (ch - (65 - 10)) * pow(16, position);
+    }
+
+    return atoi(result);
+}
+
+void read_text(FILE* input) {
+    char text_temp[BITSIZE] = { '\0', };//16
+    int text_address = STARTTEXT;
+    int label_count = 0;
+
+    while (!feof(input)) {//.text∫Œ≈Õ ∆ƒ¿œ¿« ≥°±Ó¡ˆ ¿–±‚
+
+        fscanf(input, "%s", &text_temp);//.text¥Ÿ¿Ω ¿–¿Ω
+
+        int text_label_size = strlen(text_temp);// πÆ¿⁄ø≠ «—∞≥¿« ≈©±‚ = string_size
+
+        if (strcmp(text_temp[text_label_size - 1], ":") == 0) {//∫Øºˆ ∏Ì ∏∂¡ˆ∏∑¿Ã : .∂Û∫ß
+                                                               //label[label_count].name = text_temp;//∂Û∫ß ¿Ã∏ß∫∞∑Œ
+            memcpy(label[label_count].name, text_temp, text_label_size - 1);
+            label[label_count].address = text_address;//¡÷º“¿˙¿Â
+            label_count++;
         }
-        else if (ch >= 97 && ch <= 102)
-        {
-            decimal += (ch - (97 - 10)) * pow(16, position);
+        else {//∂Û∫ß æ∆¥œ∏È,
+            int i;
+            for (i = 0; i < 22; i++) //instºˆ
+                if (strcmp(text_temp, inst[i].name) == 0) {//instruction name¿œ∂ß∏∏
+                    text_address += 4;//¡÷º“∞ËªÍ
+                }
+
         }
-
-        position++;
     }
-
-    return decimal;
-
 }
 
-int find_op(char* inst){
-    for(int i=0; i<21; i++){
-        if(strcmp(inst, opcode_list[i].name)==0)
-            return i;
+void read_instruction(FILE* input) {//¥ŸΩ√ ¿–¿∏∏Èº≠
+    char text_temp[BITSIZE] = { '\0', };
+
+    while (!feof(input)) {//.text∫Œ≈Õ ∆ƒ¿œ¿« ≥°±Ó¡ˆ ¿–±‚
+
+        fscanf(input, "%s", &text_temp);//.text¥Ÿ¿Ω ¿–¿Ω
+
+        int text_label_size = strlen(text_temp);// πÆ¿⁄ø≠ «—∞≥¿« ≈©±‚ = string_size
+
+        if (strcmp(text_temp[text_label_size - 1], ":") == 0) {//∫Øºˆ ∏Ì ∏∂¡ˆ∏∑¿Ã : ∂Û∫ß
+            continue;
+
+        }
+        else {//∂Û∫ß æ∆¥œ∏È,
+            int current_address = STARTTEXT;
+            int idx;
+            int text_count = 0;
+            char temp_1[30] = { '\0', };
+            char temp_2[30] = { '\0', };
+            char temp_3[30] = { '\0', };
+            char temp_4[30] = { '\0', };
+
+            for (idx = 0; idx < 20; idx++) {//instºˆ
+                if (strcmp(text_temp, inst[idx].name) == 0) {//instruction structø° ¿÷¥¬∞ÊøÏ
+
+                    text[text_count].inst_idx = idx;
+
+                    switch (inst[idx].format) {
+                    case 'R':
+
+                        if (inst[idx] == 16 || inst[idx] == 17) {//shift
+                            fscanf(input, "%s", &temp_1);//&text[text_count].rd);
+                            fscanf(input, "%s", &temp_2);// &text[text_count].rt);
+                            fscanf(input, "%d", &text[text_count].shamt);
+
+                            text[text_count].rd = value_to_int(temp_1);
+                            text[text_count].rt = value_to_int(temp_2);
+                        }
+                        else if (inst[idx] == 8) {//jr
+                            fscanf(input, "%s", &temp_1);
+
+                            text[text_count].rs = value_to_int(temp_1);
+                        }
+                        else {//not shift
+
+                            fscanf(input, "%s", &temp_1);
+                            fscanf(input, "%s", &temp_2);
+                            fscanf(input, "%s", &temp_3);
+
+                            text[text_count].rd = value_to_int(temp_1);
+                            text[text_count].rs = value_to_int(temp_2);
+                            text[text_count].rt = value_to_int(temp_3);
+
+
+                        }
+
+                        break;
+
+
+
+                    case 'I':
+                        if (inst[idx] == 9) { //lui¿œ∂ß
+                            fscanf(input, "%s", &temp_1);
+                            text[text_count].rt = value_to_int(temp_1);
+
+                            fscanf(input, "%d", &text[text_count].immediate);//16¡¯ºˆ µÈæÓ∞°¿÷¥Ÿ
+                        }
+                        else if (inst[idx] == 4 || inst[idx] == 5) {//bne , beq
+                            char label_temp[BITSIZE] = { '\0', };
+                            fscanf(input, "%s", &temp_1);
+                            fscanf(input, "%s", &temp_2);
+
+                            text[text_count].rs = value_to_int(temp_1);
+                            text[text_count].rt = value_to_int(temp_2);
+
+                            fscanf(input, "%s", &label_temp);//labelπﬁæ∆øÕº≠
+                            int j;
+                            for (j = 0; label[j].name[0] != '\0'; j++) {//label∫∞ ¡÷º“ √£æ∆¡‡æﬂ«—¥Ÿ.
+                                if (strcmp(label[j].name, label_temp) == 0) {//∂Û∫ß √£¿∏∏È
+                                    text[text_count].immediate = label[j].address - (current_address + 4) / 4//xƒ≠ ¿Ãµø//10¡¯ºˆ µÈæÓ∞°¿÷¥Ÿ
+                                }
+
+                            }
+                        }
+                        else if (inst[idx] == 10 || inst[idx] == 18) {//lw, sw
+                            fscanf(input, "%s", &temp_1);
+                            text[text_count].rt = value_to_int(temp_1);
+
+                            fscanf(input, "%d(%s", &text[text_count].immediate, &temp_1);//4($3) : 3¿Ã rs 4¥¬ imm
+                            text[text_count].rs = value_to_int(temp_1);//∞Ê∞Ì
+                        }
+                        else {//≥™∏”¡ˆ
+                            fscanf(input, "%s,", &temp_1);
+                            fscanf(input, "%s", &temp_2);
+
+                            text[text_count].rt = value_to_int(temp_1);
+                            text[text_count].rs = value_to_int(temp_2);
+                            fscanf(input, "%d", &text[text_count].immediate);
+                        }
+
+                        break;
+
+
+
+                    case 'J':
+                        int j;
+                        fscanf(input, "%s", &label_temp);//labelπﬁæ∆øÕº≠
+                        for (j = 0; label[j].name[0] != '\0'; j++) {//label∫∞ ¡÷º“ √£æ∆¡‡æﬂ«—¥Ÿ.
+                            if (strcmp(label[j].name, label_temp) == 0) {//∂Û∫ß √£¿∏∏È
+                                text[text_count].j_address = label[j].address;//∂Û∫ß ¡÷º“∏¶ ≥÷æÓµ–¥Ÿ.
+                                
+                            }
+                        }
+
+                        break;
+
+                        text_count++;
+                        current_address += 4;
+                    }
+                    break;
+                }
+                else if (strcmp(text_temp, "la") == 0) {//la¿Œ ∞ÊøÏ
+                                                        //text_count++;+2«ÿ¡‡æﬂ«—¥Ÿ.
+                    //la    $8, data1¿Ã∂Û«“∂ß
+
+                    fscanf(input, "%s", &temp_1);//$8πﬁ¿Ω
+                    fscanf(input, "%s", &label_temp);//data¿« ∂Û∫ß πﬁæ∆øÕº≠
+
+                    int j;
+                    for (j = 0; data[j].label[0] != '\0'; j++) {//label∫∞ ¡÷º“ √£æ∆¡‡æﬂ«—¥Ÿ.
+                        if (strcmp(data[j].label, label_temp) == 0) {//∂Û∫ß √£¿∏∏È
+
+                            sprintf(temp_4, "%08X\n", label[j].address);//∂Û∫ß ¡÷º“ 16¡¯ºˆ∑Œ πŸ≤ŸæÓº≠ temp_4 ¿˙¿Â
+                            text[text_count].inst_idx = 9;//lui
+                            text[text_count].rt = value_to_int(temp_1);
+                            int temp_num = temp_4[0] * 1000 + temp_4[1] * 100 + temp_4[2] * 10 + temp_4[3] * 1;
+                            text[text_count].immediate = temp_num;//æ’¿« 4¿⁄∏Æ ¿˙¿Â
+
+                            text_count++;
+                            current_address += 4;
+
+
+                            if (temp_4[4] != '0' || temp_4[5] != '0' || temp_4[6] != '0' || temp_4[7] != '0') {//∂Û∫ß ¡÷º“ µﬁ¿⁄∏Æ 0æ∆¥œ∏È
+                                text[text_count].inst_idx = 13;
+                                text[text_count].rt = value_to_int(temp_1);
+                                int temp_num = temp_4[4] * 1000 + temp_4[5] * 100 + temp_4[6] * 10 + temp_4[7] * 1;
+                                text[text_count].immediate = temp_num;//µ⁄¿« 4¿⁄∏Æ ¿˙¿Â
+
+                                text_count++;
+                                current_address += 4;
+                            }
+                        }
+                    }
+                }
+            }
+
+            textsize = current_address - STARTTEXT;
+        }
     }
-    printf("couldn't find_op\n");
-    return -1;
 }
 
-int find_dataLabel(char* data){
-    strcat(data, ":");
-    for(int i=0; i<6; i++){
-        if(strcmp(data, data_list[i].label)==0)
-            return i;
+
+void read_assemble(FILE* input) {
+    char data_temp[BITSIZE] = { '\0', };//16
+    int data_count = 0;
+    int data_address = STARTDATA;
+    //bool data_label_check = false;
+
+    while (!feof(input)) {//∆ƒ¿œ¿« ≥°±Ó¡ˆ ¿–±‚
+        fscanf(input, "%s", &data_temp);//πÆ¿⁄ø≠ «—∞≥æø ¿–¿∏∏Èº≠ data_tempø° ≥÷¿Ω
+
+        int data_label_size = strlen(data_temp);// πÆ¿⁄ø≠ «—∞≥¿« ≈©±‚ = string_size
+
+        if (strcmp(data_temp, ".text") == 0) { //.text
+            datasize = data_address - STARTDATA;
+            FILE *point;
+            point = input;//∞Ê∞Ì
+            read_text(point);
+            read_instruction(point);
+            break;
+        }
+        else {//.data
+            if (strcmp(data_temp, ".word") == 0 || strcmp(data_temp, ".data") == 0) { //.word or .data∏È,
+
+                continue;
+            }
+            else if (strcmp(data_temp[data_label_size - 1], ":") == 0) {//∫Øºˆ ∏Ì∏∂¡ˆ∏∑¿Ã : .∂Û∫ß ¿÷¿∏∏È,
+                                                                        //data[data_count].label = data_temp;//±∏¡∂√ºø° ∂Û∫ß ¿˙¿Â
+                memcpy(data[data_count].label, data_temp, data_label_size - 1);//data_label_check == true
+            }
+            else {//value
+                  //if (!data_label_check)//¿¸ø° ∂Û∫ß¿Ã æ¯¿∏∏È
+                  //    data[data_count].label = "";
+
+                data[data_count].value = data_temp;//±∏¡∂√ºø° value¿˙¿Â
+                data[data_count].address = data_address;//±∏¡∂√ºø° ¡÷º“ ¿˙¿Â
+
+                data_count++;//±∏¡∂√º idx «œ≥™ ¡ı∞°Ω√≈≤¥Ÿ.
+                data_address += 0x00000004;//¡÷º“∞™ ¡ı∞°Ω√≈≤¥Ÿ.
+                                           //data_label_check = false;
+            }
+        }
     }
-    printf("couldn't find_dataLabel\n");
-    return -1;
 }
 
-int find_textLabel(char *label){
-    strcat(label, ":");
-    for(int i=0; i<9; i++){
-        if(strcmp(label, label_list[i].name)==0)
-            return i;
+void change_to_binary(FILE* output) {//¿⁄∏Æºˆ ∏¬√Áº≠ 0µµ √ﬂ∞°«ÿæﬂ «—¥Ÿ + √‚∑¬«“ ∫Œ∫– binary∑Œ πŸ≤„¡‡æﬂ «—¥Ÿ.
+    fprintf(output, "%032d", decimal_to_binary(textsize));
+    fprintf(output, "%032d", decimal_to_binary(datasize));
+    int i;
+    for (i = 0; i < textsize / 4; i++) {
+        switch (inst[text[i].inst_idx].format) {
+        case 'R':
+            fprintf(output, "%06d", decimal_to_binary(inst[text[i].inst_idx].opcode);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rs);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rt);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rd);
+            fprintf(output, "%05d", decimal_to_binary(text[i].shamt);
+            fprintf(output, "%06d", decimal_to_binary(inst[text[i].inst_idx].funct);
+            break;
+        case 'I':
+            fprintf(output, "%06d", decimal_to_binary(inst[text[i].inst_idx].opcode);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rs);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rt);
+            fprintf(output, "%016d", decimal_to_binary(text[i].immediate);
+            break;
+        case 'J':
+            fprintf(output, "%06d", decimal_to_binary(inst[text[i].inst_idx].opcode);
+            fprintf(output, "%026d", decimal_to_binary(text[i].j_address);
+            break;
+        default://la
+            fprintf(output, "%06d", decimal_to_binary(inst[text[i].inst_idx].opcode);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rs);
+            fprintf(output, "%05d", decimal_to_binary(text[i].rt);
+            fprintf(output, "%016d", decimal_to_binary(text[i].immediate);
+            break;
+        }
     }
-    printf("couldn't find_textLabel\n");
-    return -1;
+
+    for (i = 0; i < datasize / 4; i++)
+        fprintf(output, "%032d", decimal_to_binary(data[i].value);
 }
+
+
+
+
